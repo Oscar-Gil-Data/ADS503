@@ -1,0 +1,197 @@
+---
+title: "ADS 503 Group Project"
+author: "Jacqueline Urenda"
+date: '2022-06-19'
+output: html_document
+---
+
+```{r, warning=FALSE,message=FALSE}
+# R Libraries
+library(caret)
+library(AppliedPredictiveModeling)
+library(Hmisc)
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(corrplot)
+library(MASS)
+library(ISLR)
+```
+
+## 1. Load the Red Wine Quality data set from GitHub - data set copied from Kaggle and imported into GitHub.
+```{r, warning=FALSE,message=FALSE, fig.height= 4, fig.width= 6}
+wine <- read.csv(
+  url("https://raw.githubusercontent.com/OscarG-DataSci/ADS503/main/winequality-red.csv")
+                      , header = TRUE)
+
+# No missing data
+summary(wine)
+
+# Quality variable distribution count
+wine %>% count(quality)
+histogram(wine$quality)
+
+# Create new variable, for quality values, split by half (0, 1)
+wine$quality_target <- ifelse( wine$quality <= 5, 0, 1)
+
+# New variable, distribution counts
+wine %>% count(quality_target)
+
+# Mean of new variable is at 0.5347 (close enough to 50% to maintain balance)
+summary(wine$quality_target)
+
+# Check for missing values in data set
+wine %>% na.omit() %>% count() # there are no missing values
+
+
+# Correlation Matrix
+cor <- cor(wine)
+
+# Colors for Correlation Matrix
+colors <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA"))
+
+corrplot(cor, order="hclust", method = "color", addCoef.col = "black"
+         , tl.srt = 45, number.cex = 0.47, col=colors(200))
+
+
+# High Correlation features
+highCorr <- findCorrelation(cor, cutoff = .8)
+wine_df <- wine[, -highCorr]
+
+```
+```{r}
+head(wine_df)
+boxplot(wine_df)
+
+#Removing outliers for residual sugar:
+
+Q <- quantile(wine_df$residual.sugar, probs=c(.25, .75), na.rm = FALSE)
+
+iqr_rs <- IQR(wine_df$residual.sugar)
+
+up_rs <-  Q[2]+1.5*iqr_rs # Upper Range  
+low_rs <- Q[1]-1.5*iqr_rs # Lower Range
+
+eliminated_rs <- subset(wine_df, wine_df$residual.sugar > (Q[1] - 1.5*iqr_rs) & wine_df$residual.sugar < (Q[2]+1.5*iqr_rs))
+boxplot(eliminated_rs)
+
+#Removing outliers for free.sulfur.dioxide:
+Q2 <- quantile(wine_df$free.sulfur.dioxide, probs=c(.25, .75), na.rm = FALSE)
+iqr_fs <- IQR(eliminated_rs$free.sulfur.dioxide)
+
+up_fs <-  Q2[2]+1.5*iqr_fs # Upper Range  
+low_fs <- Q2[1]-1.5*iqr_fs # Lower Range
+
+eliminated_fs <- subset(eliminated_rs, eliminated_rs$free.sulfur.dioxide > (Q[1] - 1.5*iqr_fs) & eliminated_rs$free.sulfur.dioxide < (Q[2]+1.5*iqr_fs))
+boxplot(eliminated_fs)
+
+
+#Removing outliers for total.sulfur.dioxide:
+Q3 <- quantile(wine_df$total.sulfur.dioxide, probs=c(.25, .75), na.rm = FALSE)
+iqr_ts <- IQR(eliminated_fs$total.sulfur.dioxide)
+
+up_ts <-  Q3[2]+1.5*iqr_ts # Upper Range  
+low_ts <- Q3[1]-1.5*iqr_ts # Lower Range
+
+eliminated_ts <- subset(eliminated_fs, eliminated_fs$total.sulfur.dioxide > (Q[1] - 1.5*iqr_ts) & eliminated_fs$total.sulfur.dioxide < (Q[2]+1.5*iqr_ts))
+boxplot(eliminated_ts)
+
+
+#Removing outliers for fixed.acidity:
+Q4 <- quantile(wine_df$fixed.acidity, probs=c(.25, .75), na.rm = FALSE)
+iqr_fa <- IQR(eliminated_ts$fixed.acidity)
+
+up_fa <-  Q[2]+1.5*iqr_fa # Upper Range  
+low_fa <- Q[1]-1.5*iqr_fa # Lower Range
+
+eliminated_fa <- subset(eliminated_ts, eliminated_ts$fixed.acidity > (Q[1] - 1.5*iqr_fa) & eliminated_ts$fixed.acidity < (Q[2]+1.5*iqr_fa))
+boxplot(eliminated_fa)
+
+new_wine_data <- eliminated_fa
+
+
+```
+
+
+
+
+##Splitting the Data:
+```{r}
+training_wine <- createDataPartition(new_wine_data$quality_target, p= 0.8, list=FALSE)
+
+
+train_wine <- wine[training_wine, ]
+test_wine <- wine[-training_wine, ]
+
+
+```
+
+```{r}
+tctrl <- trainControl(method = "repeatedcv", repeats = 5, number =10)
+
+set.seed(4)
+pls_wine <- train(quality_target~ volatile.acidity + chlorides + total.sulfur.dioxide + 
+               sulphates + alcohol, data = train_wine, 
+                  method = "pls",
+                  preProc = c("center", "scale", "BoxCox"),
+                  tunelength =20,
+                  trControl = tctrl)
+pls_wine
+```
+
+##PLS Model
+```{r}
+tctrl <- trainControl(method = "repeatedcv", repeats = 5, number =10)
+
+set.seed(4)
+pls_wine <- train(quality~ volatile.acidity + chlorides + total.sulfur.dioxide + 
+               sulphates + alcohol, data = train_wine,
+                  method = "pls",
+                  preProc = c("center", "scale", "BoxCox"),
+                  tunelength =20,
+                  trControl = tctrl)
+pls_wine
+```
+
+##Mars Tuning
+
+```{r}
+library(earth)
+library(MARSS)
+mars_wine <- earth(quality~ volatile.acidity + chlorides + total.sulfur.dioxide + 
+               sulphates + alcohol, data =train_wine)
+
+mars_wine
+
+summary(mars_wine)
+
+preProc_Arguments = c("center", "scale")
+marsGrid_wine = expand.grid(.degree=1:2, .nprune=2:38)
+set.seed(0)
+marsModel_wine = train(quality~ volatile.acidity + chlorides + total.sulfur.dioxide + 
+               sulphates + alcohol, data =train_wine, method="earth", preProc=preProc_Arguments, tuneGrid=marsGrid_wine)
+
+marsModel_wine
+
+```
+
+
+##KNN Neighbors
+
+```{r}
+## KNN
+library(caret)
+
+set.seed(50)
+knn_wine <- train(quality~ volatile.acidity + chlorides + total.sulfur.dioxide + 
+               sulphates + alcohol, data =train_wine,
+               method = "knn",
+               preProc = c("center", "scale"),
+               tuneGrid = data.frame(.k = 1:50),
+               trControl = trainControl(method = "cv")) 
+
+knn_wine
+
+```
+
+
