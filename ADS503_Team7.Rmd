@@ -190,11 +190,11 @@ rpartTree2 <- as.party(rPartTree)
 par(mfrow=c(1,2))
 rsq.rpart(rPartTree)
 
+
 # Results
 rpartTree2
 
-plot(rpartTree2, gp = gpar(fontsize=6))
-
+plot(rpartTree2, gp = gpar(fontsize=4))
 ```
 ```
 ```
