@@ -1,0 +1,289 @@
+---
+title: "ADS 503 - Team 7"
+author: "Summer Purschke, Jacqueline Urenda, Oscar Gil"
+date: "06/12/2022"
+output:
+  pdf_document:
+    latex_engine: xelatex
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, warning=FALSE,message=FALSE}
+# R Libraries
+library(caret)
+library(AppliedPredictiveModeling)
+library(Hmisc)
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(corrplot)
+library(MASS)
+library(ISLR)
+library(rpart)
+library(partykit)
+library(randomForestSRC)
+library(earth)
+library(MARSS)
+library(e1071)
+library(summarytools)
+```
+
+## Load the Red Wine Quality data set from GitHub - data set copied from Kaggle and imported into GitHub.
+```{r, warning=FALSE,message=FALSE, fig.height= 4, fig.width= 6}
+#par(mfcol=c(5,3), mar=c(0.5,0.5,0.5,0))
+
+wine <- read.csv(
+  url("https://raw.githubusercontent.com/OscarG-DataSci/ADS503/main/winequality-red.csv")
+                      , header = TRUE)
+```
+```
+```
+## Data Summary
+```{r chunk_name, results="asis", warning=FALSE}
+dfSummary(wine,
+          plain.ascii  = FALSE,
+          style        = "grid",
+          graph.magnif = 0.75,
+          valid.col    = FALSE,
+          tmp.img.dir  = "/tmp")
+```
+```
+```
+## Pre-processing
+```{r, warning=FALSE,message=FALSE, fig.height= 4, fig.width= 6}
+par(mar=c(1,1,1,1)) # to fix boxplot knit processing issues
+
+# Create new variable, for quality values, split by half (0, 1)
+wine$quality_target <- ifelse( wine$quality <= 5, 0, 1)
+
+# Mean of new variable is at 0.5347 (close enough to 50% to maintain balance)
+summary(wine$quality_target)
+
+# Check for missing values in data set
+wine %>% na.omit() %>% count() # there are no missing values
+
+# Removing outliers for residual sugar:
+Q <- quantile(wine$residual.sugar, probs=c(.25, .75), na.rm = FALSE)
+iqr_rs <- IQR(wine$residual.sugar)
+up_rs <-  Q[2]+1.5*iqr_rs # Upper Range  
+low_rs <- Q[1]-1.5*iqr_rs # Lower Range
+eliminated_rs <- subset(wine, wine$residual.sugar > (Q[1] - 1.5*iqr_rs) & wine$residual.sugar < (Q[2]+1.5*iqr_rs))
+boxplot(eliminated_rs)
+
+#Removing outliers for free.sulfur.dioxide:
+Q2 <- quantile(wine$free.sulfur.dioxide, probs=c(.25, .75), na.rm = FALSE)
+iqr_fs <- IQR(eliminated_rs$free.sulfur.dioxide)
+up_fs <-  Q2[2]+1.5*iqr_fs # Upper Range  
+low_fs <- Q2[1]-1.5*iqr_fs # Lower Range
+eliminated_fs <- subset(eliminated_rs, eliminated_rs$free.sulfur.dioxide > (Q[1] - 1.5*iqr_fs) & eliminated_rs$free.sulfur.dioxide < (Q[2]+1.5*iqr_fs))
+boxplot(eliminated_fs)
+
+#Removing outliers for total.sulfur.dioxide:
+Q3 <- quantile(wine$total.sulfur.dioxide, probs=c(.25, .75), na.rm = FALSE)
+iqr_ts <- IQR(eliminated_fs$total.sulfur.dioxide)
+up_ts <-  Q3[2]+1.5*iqr_ts # Upper Range  
+low_ts <- Q3[1]-1.5*iqr_ts # Lower Range
+eliminated_ts <- subset(eliminated_fs, eliminated_fs$total.sulfur.dioxide > (Q[1] - 1.5*iqr_ts) & eliminated_fs$total.sulfur.dioxide < (Q[2]+1.5*iqr_ts))
+boxplot(eliminated_ts)
+
+#Removing outliers for fixed.acidity:
+Q4 <- quantile(wine$fixed.acidity, probs=c(.25, .75), na.rm = FALSE)
+iqr_fa <- IQR(eliminated_ts$fixed.acidity)
+up_fa <-  Q[2]+1.5*iqr_fa # Upper Range  
+low_fa <- Q[1]-1.5*iqr_fa # Lower Range
+eliminated_fa <- subset(eliminated_ts, eliminated_ts$fixed.acidity > (Q[1] - 1.5*iqr_fa) & eliminated_ts$fixed.acidity < (Q[2]+1.5*iqr_fa))
+boxplot(eliminated_fa)
+
+new_wine_data <- eliminated_fa
+
+# Removing outliers reduced dimension of data set from 1599 observations to 48
+# team opted not to use new_wine_data and keep outlier data
+dim(new_wine_data)
+
+
+# Correlation Matrix
+cor <- cor(wine)
+
+# Colors for Correlation Matrix
+colors <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA"))
+
+corrplot(cor, order="hclust", method = "color", addCoef.col = "black"
+         , tl.srt = 45, number.cex = 0.47, col=colors(200))
+
+
+# Cutoff Correlation features
+cutoffCorr <- findCorrelation(cor, cutoff = .8)
+cutoffCorrFeatures <- wine[, -cutoffCorr]
+
+# Train and Test split
+wine_split <- createDataPartition(wine$quality, p = .8, list = FALSE)
+wine_train <- wine[ wine_split,]
+wine_test  <- wine[-wine_split,]
+
+# Transform Train Data
+train_trans <- preProcess(wine_train, method = c("center", "scale"))
+train_transformed <- predict(train_trans, wine_train)
+
+# Transform Test Data
+test_trans <- preProcess(wine_test, method = c("center", "scale"))
+test_transformed <- predict(test_trans, wine_test)
+
+# Boxplot of transformed train data
+boxplot(train_transformed, horizontal = TRUE, las = 2, cex.axis = .65, cex.lab = 7)
+```
+```
+```
+## Logistic Regression Model
+```{r, warning=FALSE,message=FALSE}
+# Cutoff Correlation string to copy + paste into feature area of model
+subset(cutoffCorrFeatures, select = -c(quality_target)) %>%
+      colnames() %>%
+      paste0(collapse = " + ")
+
+set.seed(4)
+
+# Model using "quality_target" as target variable
+lmodel1 <- lm(quality_target~ volatile.acidity + sulphates + alcohol, data = train_transformed)
+
+summary(lmodel1)
+
+# Model using "quality" as target variable
+lmodel2 <- lm(quality~ volatile.acidity + sulphates + alcohol, data = train_transformed)
+
+summary(lmodel2)
+
+# Add predicted values to new data frame
+wine_test %>%
+  mutate(predicted = predict(lmodel2, newdata = test_transformed)) -> df
+
+# Summary of predicted interval
+predict(lmodel2, newdata = test_transformed, interval = "prediction") %>%
+  summary()
+
+# Scatter plot of predicted
+ggplot(df, aes(x = predicted, y = quality, colour = quality ))+
+geom_point(alpha = 0.3, position = position_jitter()) + stat_smooth()
+
+# The scatter plot supports the summary of the predicted interval, in the ranges of the fit,
+# lower, and upper ranges. The R-squared value of 0.3283 of the model, indicates that this
+# information can be predicted 33% of the time, with the data available, for the variance
+# of the information.
+
+```
+```
+```
+## CART
+```{r, warning=FALSE,message=FALSE}
+set.seed(4)
+# Subset both train and test sets, to excluse "quality_target"
+subset(train_transformed, select = -c(quality_target)) -> rf_wine_train
+subset(test_transformed, select = -c(quality_target)) -> rf_wine_test
+
+rPartTree <- rpart(quality ~ ., data = rf_wine_train)
+
+rpartTree2 <- as.party(rPartTree)
+
+# Results
+rpartTree2
+
+plot(rpartTree2, gp = gpar(fontsize=6))
+
+```
+```
+```
+## Random Forest
+```{r, warning=FALSE,message=FALSE}
+set.seed(4)
+
+rf <- rfsrc(quality ~ ., data = rf_wine_train)
+
+print(rf)
+
+# Variable Importance
+vi <- subsample(rf, verbose = FALSE)
+
+extract.subsample(vi)$var.jk.sel.Z
+
+# Variable Importance Plot
+plot(vi)
+
+# Predict
+# https://www.rdocumentation.org/packages/randomForestSRC/versions/3.1.0/topics/predict.rfsrc
+randomForestSRC::predict.rfsrc(rf, rf_wine_test)
+```
+```
+```
+## Partial Least Squares
+```{r, warning=FALSE,message=FALSE}
+tctrl <- trainControl(method = "repeatedcv", repeats = 5, number =10)
+
+set.seed(4)
+pls_wine <- train(quality~ volatile.acidity + chlorides + total.sulfur.dioxide +
+               sulphates + alcohol, data = train_transformed,
+                  method = "pls",
+                  preProc = c("center", "scale", "BoxCox"),
+                  tunelength =20,
+                  trControl = tctrl)
+
+pls_wine
+```
+```
+```
+## Mars Tuning
+```{r, warning=FALSE,message=FALSE}
+mars_wine <- earth(quality~ volatile.acidity + chlorides + total.sulfur.dioxide +
+               sulphates + alcohol, data =train_transformed)
+
+mars_wine
+
+summary(mars_wine)
+
+preProc_Arguments = c("center", "scale")
+marsGrid_wine = expand.grid(.degree=1:2, .nprune=2:38)
+
+set.seed(4)
+
+marsModel_wine = train(quality~ volatile.acidity + chlorides + total.sulfur.dioxide +
+                       sulphates + alcohol, data =train_transformed,
+                       method="earth",
+                       preProc=preProc_Arguments,
+                       tuneGrid=marsGrid_wine)
+
+marsModel_wine
+```
+```
+```
+## KNN Neighbors
+```{r, warning=FALSE,message=FALSE}
+set.seed(4)
+
+knn_wine <- train(quality~ volatile.acidity + chlorides + total.sulfur.dioxide +
+               sulphates + alcohol, data =train_transformed,
+               method = "knn",
+               preProc = c("center", "scale"),
+               tuneGrid = data.frame(.k = 1:50),
+               trControl = trainControl(method = "cv"))
+
+knn_wine
+```
+```
+```
+## SVM
+```{r, warning=FALSE,message=FALSE}
+set.seed(4)
+
+subset(train_transformed, select = -c(quality_target, quality)) -> predictors
+train_transformed$quality -> quality
+
+svmTune <- train(predictors, quality,
+                 method = "svmRadial",
+                 preProc = c("center", "scale"),
+                 tuneLength= 5,
+                 trControl = trainControl(method = "cv"))
+svmTune
+```
