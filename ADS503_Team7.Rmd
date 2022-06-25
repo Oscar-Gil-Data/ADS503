@@ -184,6 +184,10 @@ set.seed(4)
 subset(wine_train, select = -c(quality_target)) -> rf_wine_train
 subset(wine_test, select = -c(quality_target)) -> rf_wine_test
 
+# Convert target variable to factor to ensure proper interpretation by model
+rf_wine_train$quality <- as.factor(rf_wine_train$quality)
+
+# Begin model...
 rPartTree <- rpart(quality ~ ., data = rf_wine_train)
 
 rpartTree2 <- as.party(rPartTree)
