@@ -244,7 +244,7 @@ tctrl <- trainControl(method = "repeatedcv", repeats = 5, number =10)
 
 set.seed(4)
 pls_wine <- train(quality~ volatile.acidity + chlorides + total.sulfur.dioxide +
-               sulphates + alcohol, data = train_transformed,
+               sulphates + alcohol, data = wine_train,
                   method = "pls",
                   preProc = c("center", "scale", "BoxCox"),
                   tunelength =20,
@@ -257,7 +257,7 @@ pls_wine
 ## Mars Tuning
 ```{r, warning=FALSE,message=FALSE}
 mars_wine <- earth(quality~ volatile.acidity + chlorides + total.sulfur.dioxide +
-               sulphates + alcohol, data =train_transformed)
+               sulphates + alcohol, data =wine_train)
 
 mars_wine
 
@@ -269,7 +269,7 @@ marsGrid_wine = expand.grid(.degree=1:2, .nprune=2:38)
 set.seed(4)
 
 marsModel_wine = train(quality~ volatile.acidity + chlorides + total.sulfur.dioxide +
-                       sulphates + alcohol, data =train_transformed,
+                       sulphates + alcohol, data =wine_train,
                        method="earth",
                        preProc=preProc_Arguments,
                        tuneGrid=marsGrid_wine)
@@ -283,7 +283,7 @@ marsModel_wine
 set.seed(4)
 
 knn_wine <- train(quality~ volatile.acidity + chlorides + total.sulfur.dioxide +
-               sulphates + alcohol, data =train_transformed,
+               sulphates + alcohol, data =wine_train,
                method = "knn",
                preProc = c("center", "scale"),
                tuneGrid = data.frame(.k = 1:50),
@@ -297,8 +297,8 @@ knn_wine
 ```{r, warning=FALSE,message=FALSE}
 set.seed(4)
 
-subset(train_transformed, select = -c(quality_target, quality)) -> predictors
-train_transformed$quality -> quality
+subset(wine_train, select = -c(quality_target, quality)) -> predictors
+wine_train$quality -> quality
 
 svmTune <- train(predictors, quality,
                  method = "svmRadial",
