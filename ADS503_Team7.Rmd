@@ -147,21 +147,21 @@ subset(cutoffCorrFeatures, select = -c(quality_target)) %>%
 set.seed(4)
 
 # Model using "quality_target" as target variable
-lmodel1 <- lm(quality_target~ volatile.acidity + sulphates + alcohol, data = train_transformed)
+lmodel1 <- lm(quality_target~ volatile.acidity + sulphates + alcohol, data = wine_train)
 
 summary(lmodel1)
 
 # Model using "quality" as target variable
-lmodel2 <- lm(quality~ volatile.acidity + sulphates + alcohol, data = train_transformed)
+lmodel2 <- lm(quality~ volatile.acidity + sulphates + alcohol, data = wine_train)
 
 summary(lmodel2)
 
 # Add predicted values to new data frame
 wine_test %>%
-  mutate(predicted = predict(lmodel2, newdata = test_transformed)) -> df
+  mutate(predicted = predict(lmodel2, newdata = wine_test)) -> df
 
 # Summary of predicted interval
-predict(lmodel2, newdata = test_transformed, interval = "prediction") %>%
+predict(lmodel2, newdata = wine_test, interval = "prediction") %>%
   summary()
 
 # Scatter plot of predicted
