@@ -31,6 +31,7 @@ library(earth)
 library(MARSS)
 library(e1071)
 library(summarytools)
+library(grid)
 ```
 
 ## Load the Red Wine Quality data set from GitHub - data set copied from Kaggle and imported into GitHub.
@@ -178,9 +179,10 @@ geom_point(alpha = 0.3, position = position_jitter()) + stat_smooth()
 ## CART
 ```{r, warning=FALSE,message=FALSE}
 set.seed(4)
-# Subset both train and test sets, to excluse "quality_target"
-subset(train_transformed, select = -c(quality_target)) -> rf_wine_train
-subset(test_transformed, select = -c(quality_target)) -> rf_wine_test
+# Subset both train and test sets, to exclude "quality_target"
+# Using non-transformed versions of train and test, to get actual values in the nodes
+subset(wine_train, select = -c(quality_target)) -> rf_wine_train
+subset(wine_test, select = -c(quality_target)) -> rf_wine_test
 
 rPartTree <- rpart(quality ~ ., data = rf_wine_train)
 
@@ -190,11 +192,23 @@ rpartTree2 <- as.party(rPartTree)
 par(mfrow=c(1,2))
 rsq.rpart(rPartTree)
 
-
 # Results
 rpartTree2
 
 plot(rpartTree2, gp = gpar(fontsize=4))
+
+# Root Node Left vs Right, Quality Density Comparisons
+grid.newpage()
+filter(wine_train, alcohol < 10.525) %>% 
+  dplyr::select(quality, alcohol) %>%
+  ggplot(aes(x = quality)) + geom_density() -> RootNodeLeft
+  
+
+filter(wine_train, alcohol >= 10.525) %>% 
+  dplyr::select(quality, alcohol) %>%
+  ggplot(aes(x = quality)) + geom_density() -> RootNodeRight
+
+grid.draw(rbind(ggplotGrob(RootNodeLeft), ggplotGrob(RootNodeRight), size = "last"))
 ```
 ```
 ```
