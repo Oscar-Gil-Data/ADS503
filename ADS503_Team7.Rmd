@@ -164,6 +164,9 @@ wine_test %>%
 predict(lmodel2, newdata = wine_test, interval = "prediction") %>%
   summary()
 
+# Confusion Matrix
+confusionMatrix(table(df$quality, wine_test$quality))
+
 # Scatter plot of predicted
 ggplot(df, aes(x = predicted, y = quality, colour = quality ))+
 geom_point(alpha = 0.3, position = position_jitter()) + stat_smooth()
@@ -201,6 +204,22 @@ rpartTree2
 
 plot(rpartTree2, gp = gpar(fontsize=4))
 
+
+# Add predicted values to new data frame
+wine_test %>%
+  mutate(predicted = predict(rpartTree2, newdata = wine_test)) -> df2
+
+# Summary of predicted values
+predict(rpartTree2, newdata = wine_test, interval = "prediction") %>%
+  summary()
+
+# Confusion Matrix
+confusionMatrix(table(df2$quality, wine_test$quality))
+
+# Scatter plot of predicted
+ggplot(df2, aes(x = predicted, y = quality, colour = quality ))+
+geom_point(alpha = 0.3, position = position_jitter()) + stat_smooth()
+
 # Root Node Left vs Right, Quality Density Comparisons
 grid.newpage()
 filter(wine_train, alcohol < 10.525) %>% 
@@ -232,7 +251,7 @@ extract.subsample(vi)$var.jk.sel.Z
 # Variable Importance Plot
 plot(vi)
 
-# Predict
+# Confusion Matrix
 # https://www.rdocumentation.org/packages/randomForestSRC/versions/3.1.0/topics/predict.rfsrc
 randomForestSRC::predict.rfsrc(rf, rf_wine_test)
 ```
@@ -251,6 +270,21 @@ pls_wine <- train(quality~ volatile.acidity + chlorides + total.sulfur.dioxide +
                   trControl = tctrl)
 
 pls_wine
+
+# Add predicted values to new data frame
+wine_test %>%
+  mutate(predicted = predict(pls_wine, newdata = wine_test)) -> df3
+
+# Summary of predicted interval
+predict(pls_wine, newdata = wine_test, interval = "prediction") %>%
+  summary()
+
+# Confusion Matrix
+confusionMatrix(table(df3$quality, wine_test$quality))
+
+# Scatter plot of predicted
+ggplot(df3, aes(x = predicted, y = quality, colour = quality ))+
+geom_point(alpha = 0.3, position = position_jitter()) + stat_smooth()
 ```
 ```
 ```
@@ -275,6 +309,21 @@ marsModel_wine = train(quality~ volatile.acidity + chlorides + total.sulfur.diox
                        tuneGrid=marsGrid_wine)
 
 marsModel_wine
+
+# Add predicted values to new data frame
+wine_test %>%
+  mutate(predicted = predict(marsModel_wine, newdata = wine_test)) -> df4
+
+# Summary of predicted interval
+predict(marsModel_wine, newdata = wine_test, interval = "prediction") %>%
+  summary()
+
+# Confusion Matrix
+confusionMatrix(table(df4$quality, wine_test$quality))
+
+# Scatter plot of predicted
+ggplot(df4, aes(x = predicted, y = quality, colour = quality ))+
+geom_point(alpha = 0.3, position = position_jitter()) + stat_smooth()
 ```
 ```
 ```
@@ -290,6 +339,21 @@ knn_wine <- train(quality~ volatile.acidity + chlorides + total.sulfur.dioxide +
                trControl = trainControl(method = "cv"))
 
 knn_wine
+
+# Add predicted values to new data frame
+wine_test %>%
+  mutate(predicted = predict(knn_wine, newdata = wine_test)) -> df5
+
+# Summary of predicted interval
+predict(knn_wine, newdata = wine_test, interval = "prediction") %>%
+  summary()
+
+# Confusion Matrix
+confusionMatrix(table(df5$quality, wine_test$quality))
+
+# Scatter plot of predicted
+ggplot(df5, aes(x = predicted, y = quality, colour = quality ))+
+geom_point(alpha = 0.3, position = position_jitter()) + stat_smooth()
 ```
 ```
 ```
@@ -297,13 +361,26 @@ knn_wine
 ```{r, warning=FALSE,message=FALSE}
 set.seed(4)
 
-subset(wine_train, select = -c(quality_target, quality)) -> predictors
-wine_train$quality -> quality
 
-svmTune <- train(predictors, quality,
+svmTune <- train(quality ~ ., data = rf_wine_train, # using the subset data as used in random forest
                  method = "svmRadial",
                  preProc = c("center", "scale"),
                  tuneLength= 5,
                  trControl = trainControl(method = "cv"))
 svmTune
+
+# Add predicted values to new data frame
+wine_test %>%
+  mutate(predicted = predict(svmTune, newdata = wine_test)) -> df6
+
+# Summary of predicted interval
+predict(svmTune, newdata = wine_test, interval = "prediction") %>%
+  summary()
+
+# Confusion Matrix
+confusionMatrix(table(df6$quality, wine_test$quality))
+
+# Scatter plot of predicted
+ggplot(df6, aes(x = predicted, y = quality, colour = quality ))+
+geom_point(alpha = 0.3, position = position_jitter()) + stat_smooth()
 ```
