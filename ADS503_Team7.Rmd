@@ -33,6 +33,7 @@ library(e1071)
 library(summarytools)
 library(grid)
 library(MLeval)
+library(pROC)
 ```
 
 ## Load the Red Wine Quality data set from GitHub - data set copied from Kaggle and imported into GitHub.
@@ -45,12 +46,15 @@ wine <- read.csv(
 ```
 ## Data Summary
 ```{r chunk_name, results="asis", warning=FALSE}
+# use the view function to view in R Studio
+view(
 dfSummary(wine,
           plain.ascii  = FALSE,
           style        = "grid",
           graph.magnif = 0.75,
           valid.col    = FALSE,
-          tmp.img.dir  = "NA") # "/tmp" if on Mac, "NA" on Windows
+          tmp.img.dir  = "NA")
+    )
 ```
 ```
 ```
@@ -174,6 +178,17 @@ table1 <- table(factor(df$quality, union1), factor(df$predicted_int, union1))
 
 confusionMatrix(table1)
 
+# ROC plot
+df$predicted_int = round(as.numeric(as.character(df$predicted)), digits = 0)
+
+modelName1 <- 'Logistic Regression'
+roc1 <- roc(df$quality, df$predicted_int)
+auc1 <- round(auc(df$quality, df$predicted_int), 4)
+
+ggroc(roc1, colours = 'red', size = 1) +
+  ggtitle(paste0(modelName1, ' - ROC Curve ', '(AUC = ', auc1 , ')')) + theme_minimal()
+
+
 # Scatter plot of predicted
 ggplot(df, aes(x = predicted, y = quality, colour = quality ))+
 geom_point(alpha = 0.3, position = position_jitter()) + stat_smooth()
@@ -222,6 +237,17 @@ predict(rpartTree2, newdata = wine_test, interval = "prediction") %>%
 
 # Confusion Matrix
 confusionMatrix(table(df2$quality, df2$predicted))
+
+# ROC plot
+df2$predicted_int = round(as.numeric(as.character(df2$predicted)), digits = 0)
+
+modelName2 <- 'CART'
+roc2 <- roc(df2$quality, df2$predicted_int)
+auc2 <- round(auc(df2$quality, df2$predicted_int), 4)
+
+ggroc(roc1, colours = 'red', size = 1) +
+  ggtitle(paste0(modelName2, ' - ROC Curve ', '(AUC = ', auc2 , ')')) + theme_minimal()
+
 
 # Scatter plot of predicted
 ggplot(df2, aes(x = predicted, y = quality, colour = quality ))+
@@ -295,6 +321,16 @@ table3 <- table(factor(df3$quality, union3), factor(df3$predicted_int, union3))
 
 confusionMatrix(table3)
 
+# ROC plot
+df3$predicted_int = round(as.numeric(as.character(df3$predicted)), digits = 0)
+
+modelName3 <- 'Partial Least Squares'
+roc3 <- roc(df3$quality, df3$predicted_int)
+auc3 <- round(auc(df3$quality, df3$predicted_int), 4)
+
+ggroc(roc3, colours = 'red', size = 1) +
+  ggtitle(paste0(modelName3, ' - ROC Curve ', '(AUC = ', auc3 , ')')) + theme_minimal()
+
 # Scatter plot of predicted
 ggplot(df3, aes(x = predicted, y = quality, colour = quality ))+
 geom_point(alpha = 0.3, position = position_jitter()) + stat_smooth()
@@ -340,6 +376,16 @@ table4 <- table(factor(df4$quality, union4), factor(df4$predicted_int, union4))
 
 confusionMatrix(table4)
 
+# ROC plot
+df4$predicted_int = round(as.numeric(as.character(df4$predicted)), digits = 0)
+
+modelName4 <- 'Mars Tuning'
+roc4 <- roc(df4$quality, df4$predicted_int)
+auc4 <- round(auc(df4$quality, df4$predicted_int), 4)
+
+ggroc(roc4, colours = 'red', size = 1) +
+  ggtitle(paste0(modelName4, ' - ROC Curve ', '(AUC = ', auc4 , ')')) + theme_minimal()
+
 # Scatter plot of predicted
 ggplot(df4, aes(x = predicted, y = quality, colour = quality ))+
 geom_point(alpha = 0.3, position = position_jitter()) + stat_smooth()
@@ -376,6 +422,16 @@ table5 <- table(factor(df5$quality, union5), factor(df5$predicted_int, union5))
 
 confusionMatrix(table5)
 
+# ROC plot
+df5$predicted_int = round(as.numeric(as.character(df5$predicted)), digits = 0)
+
+modelName5 <- 'KNN'
+roc5 <- roc(df5$quality, df5$predicted_int)
+auc5 <- round(auc(df5$quality, df5$predicted_int), 4)
+
+ggroc(roc5, colours = 'red', size = 1) +
+  ggtitle(paste0(modelName5, ' - ROC Curve ', '(AUC = ', auc5 , ')')) + theme_minimal()
+
 # Scatter plot of predicted
 ggplot(df5, aes(x = predicted, y = quality, colour = quality ))+
 geom_point(alpha = 0.3, position = position_jitter()) + stat_smooth()
@@ -387,7 +443,7 @@ geom_point(alpha = 0.3, position = position_jitter()) + stat_smooth()
 set.seed(4)
 
 
-svmTune <- train(quality ~ ., data = rf_wine_train, # using the subset data as used in random forest
+svmTune <- train(quality ~ volatile.acidity + sulphates + alcohol, data = rf_wine_train, # using the subset data as used in random forest
                  method = "svmRadial",
                  preProc = c("center", "scale"),
                  tuneLength= 5,
@@ -404,6 +460,16 @@ predict(svmTune, newdata = wine_test, interval = "prediction") %>%
 
 # Confusion Matrix
 confusionMatrix(table(df6$quality, df6$predicted))
+
+# ROC plot
+df6$predicted_int = round(as.numeric(as.character(df6$predicted)), digits = 0)
+
+modelName6 <- 'SVM'
+roc6 <- roc(df6$quality, df6$predicted_int)
+auc6 <- round(auc(df6$quality, df6$predicted_int), 4)
+
+ggroc(roc6, colours = 'red', size = 1) +
+  ggtitle(paste0(modelName6, ' - ROC Curve ', '(AUC = ', auc6 , ')')) + theme_minimal()
 
 # Scatter plot of predicted
 ggplot(df6, aes(x = predicted, y = quality, colour = quality ))+
@@ -433,6 +499,16 @@ predict(svmTune, newdata = wine_test, interval = "prediction") %>%
 
 # Confusion Matrix
 confusionMatrix(table(df7$quality, df7$predicted))
+
+# ROC plot
+df7$predicted_int = round(as.numeric(as.character(df7$predicted)), digits = 0)
+
+modelName7 <- 'Penalized Logistic Regression Tuning'
+roc7 <- roc(df7$quality, df7$predicted_int)
+auc7 <- round(auc(df7$quality, df7$predicted_int), 4)
+
+ggroc(roc7, colours = 'red', size = 1) +
+  ggtitle(paste0(modelName7, ' - ROC Curve ', '(AUC = ', auc7 , ')')) + theme_minimal()
 
 # Scatter plot of predicted
 ggplot(df7, aes(x = predicted, y = quality, colour = quality ))+
