@@ -3,10 +3,10 @@ title: "ADS 503 - Team 7"
 author: "Summer Purschke, Jacqueline Urenda, Oscar Gil"
 date: "06/12/2022"
 output:
-  pdf_document:
-    latex_engine: xelatex
   html_document:
     df_print: paged
+  pdf_document:
+    latex_engine: xelatex
 ---
 
 ```{r setup, include=FALSE}
@@ -32,6 +32,7 @@ library(MARSS)
 library(e1071)
 library(summarytools)
 library(grid)
+library(MLeval)
 ```
 
 ## Load the Red Wine Quality data set from GitHub - data set copied from Kaggle and imported into GitHub.
@@ -49,7 +50,7 @@ dfSummary(wine,
           style        = "grid",
           graph.magnif = 0.75,
           valid.col    = FALSE,
-          tmp.img.dir  = "/tmp")
+          tmp.img.dir  = "NA") # "/tmp" if on Mac, "NA" on Windows
 ```
 ```
 ```
@@ -165,7 +166,13 @@ predict(lmodel2, newdata = wine_test, interval = "prediction") %>%
   summary()
 
 # Confusion Matrix
-confusionMatrix(table(df$quality, wine_test$quality))
+# Convert predicted values to whole numbers, so they match target values
+df$predicted_int = as.integer(round(df$predicted, digits = 0))
+
+union1 <- union(df$quality, df$predicted_int)
+table1 <- table(factor(df$quality, union1), factor(df$predicted_int, union1))
+
+confusionMatrix(table1)
 
 # Scatter plot of predicted
 ggplot(df, aes(x = predicted, y = quality, colour = quality ))+
@@ -214,7 +221,7 @@ predict(rpartTree2, newdata = wine_test, interval = "prediction") %>%
   summary()
 
 # Confusion Matrix
-confusionMatrix(table(df2$quality, wine_test$quality))
+confusionMatrix(table(df2$quality, df2$predicted))
 
 # Scatter plot of predicted
 ggplot(df2, aes(x = predicted, y = quality, colour = quality ))+
@@ -280,7 +287,13 @@ predict(pls_wine, newdata = wine_test, interval = "prediction") %>%
   summary()
 
 # Confusion Matrix
-confusionMatrix(table(df3$quality, wine_test$quality))
+# Convert predicted values to whole numbers, so they match target values
+df3$predicted_int = as.integer(round(df3$predicted, digits = 0))
+
+union3 <- union(df3$quality, df3$predicted_int)
+table3 <- table(factor(df3$quality, union3), factor(df3$predicted_int, union3))
+
+confusionMatrix(table3)
 
 # Scatter plot of predicted
 ggplot(df3, aes(x = predicted, y = quality, colour = quality ))+
@@ -319,7 +332,13 @@ predict(marsModel_wine, newdata = wine_test, interval = "prediction") %>%
   summary()
 
 # Confusion Matrix
-confusionMatrix(table(df4$quality, wine_test$quality))
+# Convert predicted values to whole numbers, so they match target values
+df4$predicted_int = as.integer(round(df4$predicted, digits = 0))
+
+union4 <- union(df4$quality, df4$predicted_int)
+table4 <- table(factor(df4$quality, union4), factor(df4$predicted_int, union4))
+
+confusionMatrix(table4)
 
 # Scatter plot of predicted
 ggplot(df4, aes(x = predicted, y = quality, colour = quality ))+
@@ -349,7 +368,13 @@ predict(knn_wine, newdata = wine_test, interval = "prediction") %>%
   summary()
 
 # Confusion Matrix
-confusionMatrix(table(df5$quality, wine_test$quality))
+# Convert predicted values to whole numbers, so they match target values
+df5$predicted_int = as.integer(round(df5$predicted, digits = 0))
+
+union5 <- union(df5$quality, df5$predicted_int)
+table5 <- table(factor(df5$quality, union5), factor(df5$predicted_int, union5))
+
+confusionMatrix(table5)
 
 # Scatter plot of predicted
 ggplot(df5, aes(x = predicted, y = quality, colour = quality ))+
@@ -378,9 +403,39 @@ predict(svmTune, newdata = wine_test, interval = "prediction") %>%
   summary()
 
 # Confusion Matrix
-confusionMatrix(table(df6$quality, wine_test$quality))
+confusionMatrix(table(df6$quality, df6$predicted))
 
 # Scatter plot of predicted
 ggplot(df6, aes(x = predicted, y = quality, colour = quality ))+
 geom_point(alpha = 0.3, position = position_jitter()) + stat_smooth()
+```
+```
+```
+## Penalized Logistic Regression Tuning
+```{r, warning=FALSE,message=FALSE}
+#tuning parameters, alpha is associated with the ridge(0) versus lasso regression(1)
+glmnGrid <- expand.grid(alpha = c(0,  .1,  .2, .4, .6, .8, 1),
+                        lambda = seq(.01, .2, length = 5))
+glmnTune <- train(quality ~ ., data = rf_wine_train, # using the subset data as used in random forest,
+                 method = "glmnet",
+                 tuneGrid = glmnGrid,
+                 preProc = c("center", "scale"),
+                 trControl = trainControl(method = "cv"))
+glmnTune
+
+# Add predicted values to new data frame
+wine_test %>%
+  mutate(predicted = predict(glmnTune, newdata = wine_test)) -> df7
+
+# Summary of predicted interval
+predict(svmTune, newdata = wine_test, interval = "prediction") %>%
+  summary()
+
+# Confusion Matrix
+confusionMatrix(table(df7$quality, df7$predicted))
+
+# Scatter plot of predicted
+ggplot(df7, aes(x = predicted, y = quality, colour = quality ))+
+geom_point(alpha = 0.3, position = position_jitter()) + stat_smooth()
+
 ```
