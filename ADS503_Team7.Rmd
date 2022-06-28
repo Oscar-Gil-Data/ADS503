@@ -3,10 +3,10 @@ title: "ADS 503 - Team 7"
 author: "Summer Purschke, Jacqueline Urenda, Oscar Gil"
 date: "06/12/2022"
 output:
-  html_document:
-    df_print: paged
   pdf_document:
     latex_engine: xelatex
+  html_document:
+    df_print: paged
 ---
 
 ```{r setup, include=FALSE}
@@ -45,16 +45,16 @@ wine <- read.csv(
 ```
 ```
 ## Data Summary
-```{r chunk_name, results="asis", warning=FALSE}
+```{r chunk_name, results="asis", warning=FALSE, message=FALSE}
 # use the view function to view in R Studio
-view(
+#view(
 dfSummary(wine,
           plain.ascii  = FALSE,
           style        = "grid",
           graph.magnif = 0.75,
           valid.col    = FALSE,
           tmp.img.dir  = "NA")
-    )
+#    )
 ```
 ```
 ```
